@@ -24,6 +24,7 @@ To keep business rules strictly isolated from cloud infrastructure and frontend 
 * [API Contracts & Consumer-Driven Pact Testing](#api-contracts--consumer-driven-pact-testing)
 * [User Stories & End-to-End Acceptance Suites](#user-stories--end-to-end-acceptance-suites)
 * [Outside-In Development Workflow](#outside-in-development-workflow)
+* [Release Governance & Version Hygiene](#release-governance--version-hygiene)
 * [Non-Redundant Testing Pyramid](#non-redundant-testing-pyramid)
 * [AWS Serverless Technology Stack](#aws-serverless-technology-stack)
 * [Serverless Scalability & Partitioning](#serverless-scalability--partitioning)
@@ -136,6 +137,16 @@ Feature delivery follows a strict **Contract-First, Outside-In** progression dri
    * **`persistence` & `adapters`:** Implement `core` outbound ports using `sugarcoat-labs` engines, clocks, and access guards (`Jdk` and `Aws` factories).
    * **`ui`:** Builds Angular features against `api-contract` and publishes **Pact consumer** contracts verified by `ingress`.
 4. **Assemble, Validate & Ship (`cloud-deploy`):** Wire the full application via pure constructor injection, run all `user-stories` acceptance tests against the **pure-JDK** assembly, execute the local AWS emulator dry-run smoke test, and deploy to AWS.
+
+---
+
+## Release Governance & Version Hygiene
+
+Operating an eight-repository polyrepo requires disciplined release mechanics so downstream consumers never drift out of sync, while preserving every working milestone permanently:
+
+* **Semantic Versioning (SemVer) on Foundation Artifacts:** Every release of `core`, `api-contract`, and `user-stories` follows strict `MAJOR.MINOR.PATCH` tagging (`v1.0.0`). Breaking schema or port changes increment the `MAJOR` version, while backward-compatible additions increment `MINOR` or `PATCH`.
+* **Immutable Package & Tag Archiving (Zero Oblivion):** Foundation libraries (`core`, `api-contract`) publish immutable versioned artifacts to **GitHub Packages**, while `user-stories` and `cloud-deploy` are pinned via immutable Git release tags. Every functional milestone of the application remains permanently preserved, auditable, and reproducible on demand—nothing ever falls into oblivion.
+* **Automated Dependency Propagation (Dependabot):** Downstream repositories (`persistence`, `ingress`, `adapters`, `ui`, `cloud-deploy`) run **GitHub Dependabot** to automatically open Pull Requests whenever a new foundation version is published, triggering isolated CI and Pact verification before merge.
 
 ---
 
