@@ -1,5 +1,7 @@
 # festival-tap — Critical Path Development & Delivery Roadmap
 
+> *Part of the **[festival-tap Architecture Overview](./profile/README.md)**.*
+
 This roadmap outlines the sequential, test-driven execution plan across all eight repositories for the `festival-tap` project, prioritizing a zero-speculative backend-first approach.
 
 ---
