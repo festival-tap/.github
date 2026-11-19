@@ -1,20 +1,29 @@
 # festival-tap
 
+---
+
 **festival-tap** is a cloud-native, event-sourced self-service beer tap platform built on **Hexagonal Architecture (Ports & Adapters)**, **Java 24**, **Angular 21**, and **AWS Serverless**.
 
 To keep business rules strictly isolated from cloud infrastructure and frontend delivery, the system is decomposed into seven single-responsibility repositories. Pure domain logic sits at the center (`core`), surrounded by swappable adapter factories (`persistence`, `ingress`, `adapters`), a shared REST specification (`api-contract`), the web client (`ui`), and an assembly root (`cloud-deploy`) that wires and deploys the entire stack.
+
+---
 
 ## Table of Contents
 
 * [Architectural Principles](#architectural-principles)
 * [Repositories](#repositories)
+  * [`festival-tap/user-stories`](#festival-tapuser-stories-executable-behavioral-specs--acceptance-suites) — Executable Behavioral Specs & Acceptance Suites
   * [`festival-tap/api-contract`](#festival-tapapi-contract-design-first-api-contract--openapi-30--swagger) — Design-First API Contract (OpenAPI 3.0)
   * [`festival-tap/ui`](#festival-tapui-external-client--angular-web-application) — Angular 21 Web Application
   * [`festival-tap/core`](#festival-tapcore-hexagon-core--domain--ports) — Pure Java 24 Hexagon Core
   * [`festival-tap/persistence`](#festival-tappersistence-outbound-persistence-adapters--jdk--aws) — Swappable JDK & AWS Persistence Adapters
   * [`festival-tap/ingress`](#festival-tapingress-inbound-ingress-adapters--jdk--aws) — Swappable Pure-JDK & AWS Serverless Ingress Adapters
   * [`festival-tap/adapters`](#festival-tapadapters-miscellaneous-support-adapters--jdk--aws) — Swappable JDK & AWS Support Adapters
-  * [`festival-tap/cloud-deploy`](#festival-tapcloud-deploy-composition-root-e2e-tests--cloud-infrastructure) — Composition Root, E2E Tests & IaC
+  * [`festival-tap/cloud-deploy`](#festival-tapcloud-deploy-composition-root-e2e-runner--cloud-infrastructure) — Composition Root, E2E Runner & IaC
+* [API Contracts & Consumer-Driven Pact Testing](#api-contracts--consumer-driven-pact-testing)
+* [Non-Redundant Testing Pyramid](#non-redundant-testing-pyramid)
+* [User Stories & End-to-End Acceptance Suites](#user-stories--end-to-end-acceptance-suites)
+* [Outside-In Development Workflow](#outside-in-development-workflow)
 * [Zero-Cost Delivery & Dry-Run Deployment Strategy](#zero-cost-delivery--dry-run-deployment-strategy)
 * [Access Control & Private Cloud Sandbox](#access-control--private-cloud-sandbox)
 * [Using the Application](#using-the-application)
@@ -23,6 +32,7 @@ To keep business rules strictly isolated from cloud infrastructure and frontend 
 
 ## Architectural Principles
 
+* **Externalized Behavioral Verification:** Functional user stories (`us-01`–`us-08`) and black-box acceptance suites live in their own repository ([`festival-tap/user-stories`](https://github.com)), decoupled from both domain code and deployment infrastructure. This allows behavioral specifications to be authored independently, executed across multiple boundaries (from naked `core` ports to full HTTP/cloud endpoints), and imported by `cloud-deploy` as an external, tamper-proof quality gate.
 * **Zero-Framework Backend:** The entire Java 24 backend operates without application frameworks (no Spring Boot, Micronaut, or Quarkus). It relies strictly on native Java 24 capabilities (Records, Sealed Interfaces, Pattern Matching, Virtual Threads, `jdk.httpserver`), pure constructor-based dependency injection, and official AWS SDKs—eliminating reflection overhead, framework lock-in, and AWS Lambda cold-start latency.
 * **Cross-Project Infrastructure Reuse:** Generic, domain-agnostic infrastructure—such as event-sourcing and state-store persistence engines—is extracted into standalone libraries under the [`sugarcoat-labs`](https://github.com) organization (`persistence-engines-core`, `persistence-engines-dynamodb`). Keeping these engines decoupled from business domains turns complex storage and concurrency mechanics into battle-tested, TCK-verified building blocks ready for immediate reuse across multiple projects.
 * **Autonomous Polyrepo Topology (Isolation & Parallelization):** Each architectural boundary lives in its own repository with an independent build, test, and release lifecycle. Designed to mirror a distributed multi-team engineering workflow, this separation enforces strict contract-first integration (OpenAPI + Pact), prevents accidental coupling, and allows foundation layers (`core`, `api-contract`) and adapter layers (`ui`, `persistence`, `ingress`, `adapters`) to evolve and verify in parallel.
@@ -31,6 +41,12 @@ To keep business rules strictly isolated from cloud infrastructure and frontend 
 ---
 
 ## Repositories
+
+### [`festival-tap/user-stories`](https://github.com) *(Executable Behavioral Specs & Acceptance Suites)*
+A dedicated repository housing the human-readable functional specifications (`us-01` through `us-08`) alongside black-box cURL API scripts and frontend end-to-end verification suites.
+* **Decoupled Behavioral Truth:** Isolates business acceptance criteria from cloud infrastructure and deployment wiring, allowing product requirements and acceptance tests to evolve independently.
+* **Multi-Boundary Verification:** Designed to validate system behavior across different hexagonal boundaries—from direct core port verification to black-box HTTP/cURL and UI checks against the assembled application.
+* **Versioned Quality Gate:** Tagged and imported as an external test suite by `cloud-deploy` during CI pipelines to gate staging and production promotions.
 
 ### [`festival-tap/api-contract`](https://github.com) *(Design-First API Contract — OpenAPI 3.0 / Swagger)*
 The single source of truth defining the REST API contract between the frontend client (`ui`) and the ingress adapters (`ingress`), keeping HTTP and JSON schemas completely isolated from `core`.
@@ -67,11 +83,56 @@ A dedicated repository housing secondary outbound adapters for cross-cutting dom
 * **Unified Factory Selection:** Exposes a clean factory API to supply **pure-JDK** realizations (fixed/system clocks, UUIDs) for unit and integration testing or **AWS** realizations for production on demand.
 * **Deterministic Time & Identity:** Decouples business logic from `Instant.now()` and `UUID.randomUUID()` so time-sensitive rules (like pour duration and auto-close limits) remain 100% reproducible.
 
-### [`festival-tap/cloud-deploy`](https://github.com) *(Composition Root, E2E Tests & Cloud Infrastructure)*
-The assembly and deployment repository that wires all hexagonal layers together, defines the cloud architecture schema, runs end-to-end integration tests, and automates releases.
-* **Composition Root:** Wires `ingress`, `core`, `persistence`, and `adapters` (configured via their AWS factory options) using pure Java constructor injection.
-* **Cloud Infrastructure & Schemas:** Defines the serverless topology, database schemas, and Infrastructure as Code (IaC) templates.
-* **End-to-End Verification & CI/CD:** Runs full-stack acceptance tests and user-story verification suites against local cloud emulators before deploying to the cloud.
+### [`festival-tap/cloud-deploy`](https://github.com) *(Composition Root, E2E Runner & Cloud Infrastructure)*
+The assembly and deployment repository that wires all hexagonal layers together, defines the cloud architecture schema, runs imported acceptance suites, and automates releases.
+* **Composition Root:** Wires `ingress`, `core`, `persistence`, and `adapters` (configured via their **JDK** factories for local E2E runs or **AWS** factories for cloud deployment) using pure Java constructor injection.
+* **Cloud Infrastructure & Schemas:** Defines the serverless topology, DynamoDB schemas, API Gateway throttling, and Infrastructure as Code (IaC) templates.
+* **Dual-Target Acceptance & Dry-Run CI/CD:** Imports [`festival-tap/user-stories`](https://github.com) to execute full-stack acceptance tests against the **pure-JDK** assembly first, followed by a local AWS emulator dry-run smoke test before deploying to the **AWS Always Free Tier**.
+
+---
+
+## API Contracts & Consumer-Driven Pact Testing
+
+To prevent schema drift between the Angular frontend (`ui`) and the Java 24 backend (`ingress`) without coupling their release cycles or leaking HTTP details into `core`, integration boundaries are governed by a two-tier contract strategy:
+
+* **Static Design-First Schema ([`festival-tap/api-contract`](https://github.com)):** Acts as the single source of truth for REST endpoints, request/response JSON payloads, and HTTP error codes via OpenAPI 3.0 specifications—generating typed client and server DTOs before implementation begins.
+* **Consumer Contract Generation ([`festival-tap/ui`](https://github.com)):** During CI builds, Angular consumer tests execute against mock providers to record actual HTTP expectations into executable Pact contract files (`pact.json`), published to **PactFlow (Free Plan)**.
+* **Provider Contract Verification ([`festival-tap/ingress`](https://github.com)):** Pulls the latest consumer Pact files and replays every interaction directly against the **pure-JDK HTTP server** (`Ingress.jdk()` on `jdk.httpserver` backed by in-memory fakes), guaranteeing 100% behavioral compatibility in milliseconds without Docker or cloud deployments.
+
+---
+
+## User Stories & End-to-End Acceptance Suites
+
+Functional specifications (`us-01` through `us-08`) and executable black-box acceptance suites (cURL API scripts and frontend end-to-end checks) live in their own dedicated repository, **[`festival-tap/user-stories`](https://github.com)**, keeping behavioral requirements decoupled from both core domain code and cloud infrastructure:
+
+* **Single Behavioral Truth:** Each user story (`us-01-create-dispenser` through `us-08-event-sourcing`) pairs human-readable requirements with automated verification scripts that exercise real HTTP endpoints, authentication headers, and event-sourced state transitions.
+* **Multi-Boundary & Dual-Target Execution:** Imported by [`festival-tap/cloud-deploy`](https://github.com) during CI, the acceptance suite runs first against the **pure-JDK assembly** (`Ingress.jdk()` + `Persistence.jdk()` + `Adapters.jdk()`) for sub-second functional verification, and subsequently as a smoke check against the **AWS dry-run / cloud sandbox** before release promotion.
+* **Independent QA & AI Context Isolation:** Separating user stories into a dedicated repository prevents deployment scripts from polluting functional specs and allows QA/product workflows (or AI agents) to author acceptance tests without touching IaC templates.
+
+---
+
+## Outside-In Development Workflow
+
+Feature delivery follows a strict **Contract-First, Outside-In** progression driven directly by user stories and client entry points:
+
+1. **Capture Client Intent (`api-contract` & `user-stories`):** Translate user stories into versioned OpenAPI 3.0 specifications (`openapi.yaml`), publishing generated DTOs and API contracts before writing implementation code.
+2. **Design & Verify Domain Core (`core`):** Define inbound use cases, outbound ports, and immutable domain events required by the contract. Implement pure business rules, verify them with `Jdk.inMemory()`, and publish the versioned `core` JAR.
+3. **Implement Adapters & Client in Parallel (`ingress`, `persistence`, `adapters`, `ui`):**
+   * **`ingress`:** Bridges external REST/AWS triggers (`api-contract`) to `core` use cases via `Jdk` and `Aws` factories.
+   * **`persistence` & `adapters`:** Implement `core` outbound ports using `sugarcoat-labs` engines, clocks, and access guards (`Jdk` and `Aws` factories).
+   * **`ui`:** Builds Angular features against `api-contract` and publishes **Pact consumer** contracts verified by `ingress`.
+4. **Assemble, Validate & Ship (`cloud-deploy`):** Wire the full application via pure constructor injection, run all `user-stories` acceptance tests against the **pure-JDK** assembly, execute the local AWS emulator dry-run smoke test, and deploy to AWS.
+
+---
+
+## Non-Redundant Testing Pyramid
+
+Because each architectural boundary is isolated in its own repository with swappable **JDK** and **AWS** factories, every layer is verified once at its fastest possible boundary without redundant intermediate assemblies:
+
+* **Domain Unit & In-Memory Integration (`core`):** Verifies pure pricing rules, pour timeouts, and full event-sourcing flows in milliseconds using `Jdk.inMemory()` and lightweight test doubles—eliminating any need for a separate "core + outbound adapters" test assembly.
+* **Sliced Adapter & Contract Verification (`persistence`, `ingress`, `adapters`, `ui`):** Each adapter repository tests its own translation logic in isolation—including **Pact consumer/provider** HTTP verification against the native `jdk.httpserver` ingress and **DynamoDB Local** codec tests for AWS persistence.
+* **Pure-JDK End-to-End Acceptance (`cloud-deploy`):** Executes all functional user-story acceptance scripts (`user-stories`) against the full stack assembled with **pure-JDK factories** (`Ingress.jdk()` + `Core` + `Persistence.jdk()` + `Adapters.jdk()`), delivering sub-second E2E validation with zero Docker or cloud overhead.
+* **Cloud Wiring Smoke Test (`cloud-deploy`):** Runs a targeted dry-run smoke test with the **AWS factories** against a local cloud emulator solely to verify IAM permissions, Infrastructure as Code templates, and cloud serialization before live rollout.
 
 ---
 
@@ -83,11 +144,15 @@ The entire build, test, and cloud release pipeline is designed as a **$0/month s
 2. **Floci / LocalStack Hobby / DynamoDB Local — $0/mo:** Runs open-source and free local Docker cloud emulators inside CI to execute a complete **dry-run deployment**—provisioning DynamoDB tables, SQS queues, Step Functions, and Lambdas locally to validate end-to-end user stories before touching AWS.
 3. **AWS Always Free Tier + GitHub Pages — $0/mo:** Hosts the verified serverless backend indefinitely within free quotas (1M Lambda requests, 25 GB DynamoDB storage, 1M SQS requests, and 4,000 Step Function transitions per month) alongside free static frontend hosting on **AWS S3** or **GitHub Pages**.
 
+---
+
 ### Dry-Run to Cloud Promotion Flow
 
 1. **Component Packaging:** Foundation (`core`, `api-contract`) and adapter (`persistence`, `ingress`, `adapters`, `ui`) repositories verify contracts independently and publish versioned artifacts.
 2. **Dry-Run Verification (`cloud-deploy`):** Before touching AWS, CI spins up the local AWS emulator stack, deploys the Infrastructure as Code templates into the sandbox, and runs full acceptance tests against the assembled AWS-wired application.
 3. **Zero-Cost Cloud Rollout:** Once the dry-run succeeds, GitHub Actions authenticates via OpenID Connect (OIDC) and promotes the stack to the **AWS Always Free Tier** (protected by a $1.00 AWS Budgets billing alarm).
+
+---
 
 ## Access Control & Private Cloud Sandbox
 
