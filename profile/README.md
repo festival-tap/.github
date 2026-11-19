@@ -2,9 +2,9 @@
 
 ---
 
-**festival-tap** is a cloud-native, event-sourced self-service beer tap platform built on **Hexagonal Architecture (Ports & Adapters)**, **Java 24**, **Angular 21**, and **AWS Serverless**.
+**festival-tap** is a cloud-native, event-sourced self-service beer tap platform built using **Hexagonal Architecture**, **Java**, **Angular**, and **AWS Serverless infrastructure**.
 
-To keep business rules strictly isolated from cloud infrastructure and frontend delivery, the system is decomposed into eight single-responsibility repositories. Pure domain logic sits at the center (`core`), surrounded by swappable adapter factories (`persistence`, `ingress`, `adapters`), a shared REST specification (`api-contract`), the web client (`ui`), and an assembly root (`cloud-deploy`) that wires and deploys the entire stack.
+Built as a polyrepo of single-responsibility modules, the project features executable behavioral specifications with black-box acceptance suites (`user-stories`) as its core source of value and quality gate, pure domain logic at the center (`core`), isolated adapters (`persistence`, `ingress`, `adapters`), a shared REST contract (`api-contract`), a web interface (`ui`), and an assembly root (`cloud-deploy`) for infrastructure orchestration.
 
 ---
 
@@ -13,14 +13,14 @@ To keep business rules strictly isolated from cloud infrastructure and frontend 
 * [Architectural Principles](#architectural-principles)
 * [Economic & Ergonomic Impact](#economic--ergonomic-impact)
 * [Repositories](#repositories)
-  * [`festival-tap/user-stories`](#festival-tapuser-stories-executable-behavioral-specs--acceptance-suites) — Executable Behavioral Specs & Acceptance Suites
-  * [`festival-tap/api-contract`](#festival-tapapi-contract-design-first-api-contract--openapi-30--swagger) — Design-First API Contract (OpenAPI 3.0)
-  * [`festival-tap/ui`](#festival-tapui-external-client--angular-web-application) — Angular 21 Web Application
-  * [`festival-tap/core`](#festival-tapcore-hexagon-core--domain--ports) — Pure Java 24 Hexagon Core
-  * [`festival-tap/persistence`](#festival-tappersistence-outbound-persistence-adapters--jdk--aws) — Swappable JDK & AWS Persistence Adapters
-  * [`festival-tap/ingress`](#festival-tapingress-inbound-ingress-adapters--jdk--aws) — Swappable Pure-JDK & AWS Serverless Ingress Adapters
-  * [`festival-tap/adapters`](#festival-tapadapters-miscellaneous-support-adapters--jdk--aws) — Swappable JDK & AWS Support Adapters
-  * [`festival-tap/cloud-deploy`](#festival-tapcloud-deploy-composition-root-e2e-runner--cloud-infrastructure) — Composition Root, E2E Runner & IaC
+  * [`festival-tap/user-stories`](#festival-tapuser-stories) – Executable Behavioral Specs & Acceptance Suites
+  * [`festival-tap/api-contract`](#festival-tapapi-contract) – Design-First API Contract (OpenAPI 3.0)
+  * [`festival-tap/ui`](#festival-tapui) – Angular 21 Web Application
+  * [`festival-tap/core`](#festival-tapcore) – Pure Java 24 Hexagon Core
+  * [`festival-tap/persistence`](#festival-tappersistence) – Swappable JDK & AWS Persistence Adapters
+  * [`festival-tap/ingress`](#festival-tapingress) – Swappable Pure-JDK & AWS Serverless Ingress Adapters
+  * [`festival-tap/adapters`](#festival-tapadapters) – Swappable JDK & AWS Support Adapters
+  * [`festival-tap/cloud-deploy`](#festival-tapcloud-deploy) – Composition Root, E2E Runner & IaC
 * [API Contracts & Consumer-Driven Pact Testing](#api-contracts--consumer-driven-pact-testing)
 * [User Stories & End-to-End Acceptance Suites](#user-stories--end-to-end-acceptance-suites)
 * [Outside-In Development Workflow](#outside-in-development-workflow)
@@ -28,6 +28,8 @@ To keep business rules strictly isolated from cloud infrastructure and frontend 
 * [Non-Redundant Testing Pyramid](#non-redundant-testing-pyramid)
 * [AWS Serverless Technology Stack](#aws-serverless-technology-stack)
 * [Serverless Scalability & Partitioning](#serverless-scalability--partitioning)
+* [Observability & Production Readiness](#observability--production-readiness)
+* [Accessing Observability (Zero Open Ports)](#accessing-observability-zero-open-ports)
 * [Zero-Cost Delivery & Dry-Run Deployment Strategy](#zero-cost-delivery--dry-run-deployment-strategy)
 * [Access Control & Private Cloud Sandbox](#access-control--private-cloud-sandbox)
 * [Using the Application](#using-the-application)
@@ -187,6 +189,28 @@ By adopting a fully serverless stack, infrastructure capacity planning, server s
 * **Zero-Config Compute & Messaging Elasticity:** **AWS Lambda**, **API Gateway**, **SQS**, and **S3** scale automatically from zero to thousands of concurrent festival pours without load balancers, container clusters, or idle servers.
 * **Natural High-Cardinality Partitioning:** Each beer dispenser emits its immutable event stream under its own independent partition identity (`tapId`). Because every tap writes to its own stream, **Amazon DynamoDB** distributes load evenly across physical storage partitions—preventing single-key bottlenecks ("hot partitions") and enabling seamless horizontal growth as more taps are added.
 * **Stateless Execution:** Because all operational state lives either in DynamoDB event streams or inside managed **Step Functions** workflows, compute workers remain completely stateless and horizontally interchangeable.
+
+---
+
+## Observability & Production Readiness
+
+While the current deployment is calibrated as a **$0/month sandbox**, running a distributed, asynchronous physical dispensing system in live production requires full operational visibility across synchronous HTTP boundaries, DynamoDB event streams, SQS queues, and Step Functions workflows. To preserve **zero framework overhead** and keep `core` 100% free of monitoring SDKs, observability is designed around hexagonal boundaries:
+
+- **Domain-Level Telemetry Port (`core` & `adapters`):** Business-critical milestones (e.g., tap actuation, safety auto-shutoff triggers, sequence conflicts) are modeled through a lightweight outbound port (`TelemetryPort`), keeping domain logic pure. Local runs (`Adapters.jdk()`) use a zero-overhead no-op/console realization, while production (`Adapters.aws()`) emits structured JSON logs and custom **Amazon CloudWatch** metrics without pulling heavy reflection-based agents into Lambda.
+- **End-to-End Distributed Tracing (`ingress` & `cloud-deploy`):** Every inbound request generates or propagates a correlation ID (`X-Amzn-Trace-Id` / W3C `traceparent`) across **API Gateway**, **AWS Lambda**, **SQS** message attributes, and **Step Functions** executions via **AWS X-Ray** / **OpenTelemetry**, allowing operators to trace a single beer pour from tap open to asynchronous receipt generation.
+- **Structured Logging & Business Context:** All ingress and background handlers emit single-line structured JSON logs enriched with high-cardinality domain identifiers (`tapId`, `pourId`, `eventSequence`), enabling instant root-cause queries in **CloudWatch Logs Insights** during live festival traffic.
+- **Dashboards & Proactive Alerting (`cloud-deploy`):** Production IaC templates provision live **Amazon CloudWatch Dashboards** and **AWS X-Ray Service Maps** for real-time visual monitoring in the browser. Native serverless metrics (Lambda error rates, p99 cold/warm latency, DynamoDB throttling) and **SQS Dead-Letter Queues (DLQs)** are wired to **CloudWatch Alarms** and **Amazon SNS** (email, SMS, or **AWS Chatbot** for Slack/Teams) to push immediate alerts on stuck pours or failed billing workers before they impact bar operations.
+
+---
+
+### Accessing Observability (Zero Open Ports)
+
+Because the platform runs on managed AWS serverless infrastructure, **no custom network ports or self-hosted monitoring servers are exposed**. Operators inspect system health over standard **HTTPS (443)** via IAM-authenticated AWS Console links exported by `cloud-deploy`:
+
+* **Live Operational Dashboard:** Open the `CloudWatchDashboardUrl` output from your stack deployment to view real-time pour rates, safety shutoffs, and Lambda latency in your browser.
+* **Distributed Trace Map:** Open **AWS X-Ray -> Service Map** in the AWS Console to visually trace requests across API Gateway, Lambda, SQS, and Step Functions.
+* **Push Alerts (No Polling Required):** Subscribe an email address, phone number, or Slack channel (via **AWS Chatbot**) to the `AlertsTopicArn` SNS output to receive instant notifications whenever an SQS Dead-Letter Queue or CloudWatch Alarm triggers.
+* **Local Development:** When running locally with `Adapters.jdk()`, structured telemetry logs stream directly to standard output (`stdout`) with zero network ports required.
 
 ---
 
