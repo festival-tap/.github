@@ -29,7 +29,6 @@ Built as a polyrepo of single-responsibility modules, the project features execu
 * [AWS Serverless Technology Stack](#aws-serverless-technology-stack)
 * [Serverless Scalability & Partitioning](#serverless-scalability--partitioning)
 * [Observability & Production Readiness](#observability--production-readiness)
-* [Accessing Observability (Zero Open Ports)](#accessing-observability-zero-open-ports)
 * [Zero-Cost Delivery & Dry-Run Deployment Strategy](#zero-cost-delivery--dry-run-deployment-strategy)
 * [Access Control & Private Cloud Sandbox](#access-control--private-cloud-sandbox)
 * [Using the Application](#using-the-application)
@@ -178,6 +177,9 @@ The cloud deployment uses a team of **AWS Always Free Tier** services—each plu
 | **AWS Step Functions** | `ingress` & `cloud-deploy` | A managed state machine with built-in timers that tracks multi-step workflows (such as auto-closing a forgotten tap after a timeout) without keeping a server running. |
 | **Amazon S3** | `ui`, `adapters` & `ingress` | Simple cloud file storage that serves the Angular web app to browsers (alongside GitHub Pages) and archives generated pour receipts. |
 | **AWS SSM Parameter Store** | `adapters` & `cloud-deploy` | A free, encrypted vault that holds the private invite pass (`X-Festival-Pass`) and admin credentials outside the source code. |
+| **Amazon CloudWatch** | `adapters` & `cloud-deploy` | Collects structured JSON logs, custom pour metrics, live operational dashboards, and threshold alarms without heavy monitoring agents. |
+| **AWS X-Ray** | `ingress` & `cloud-deploy` | Traces requests end-to-end across API Gateway, Lambda, DynamoDB, SQS, and Step Functions to visualize latency and bottlenecks. |
+| **Amazon SNS** | `cloud-deploy` | Delivers automated push alerts via email, SMS, or chat (AWS Chatbot) whenever a CloudWatch Alarm or Dead-Letter Queue triggers. |
 | **IAM OIDC & AWS Budgets** | `cloud-deploy` | Lets GitHub Actions deploy updates safely without storing permanent AWS keys, backed by a $1.00 billing alarm to guarantee **$0/mo** operation. |
 
 ---
@@ -194,23 +196,17 @@ By adopting a fully serverless stack, infrastructure capacity planning, server s
 
 ## Observability & Production Readiness
 
-While the current deployment is calibrated as a **$0/month sandbox**, running a distributed, asynchronous physical dispensing system in live production requires full operational visibility across synchronous HTTP boundaries, DynamoDB event streams, SQS queues, and Step Functions workflows. To preserve **zero framework overhead** and keep `core` 100% free of monitoring SDKs, observability is designed around hexagonal boundaries:
+The system provides full operational visibility across synchronous HTTP boundaries, DynamoDB event streams, SQS queues, and Step Functions workflows. Live throughput, latency, and health metrics are natively available in the browser alongside automated push alerts, with zero separate monitoring servers to maintain.
 
-- **Domain-Level Telemetry Port (`core` & `adapters`):** Business-critical milestones (e.g., tap actuation, safety auto-shutoff triggers, sequence conflicts) are modeled through a lightweight outbound port (`TelemetryPort`), keeping domain logic pure. Local runs (`Adapters.jdk()`) use a zero-overhead no-op/console realization, while production (`Adapters.aws()`) emits structured JSON logs and custom **Amazon CloudWatch** metrics without pulling heavy reflection-based agents into Lambda.
-- **End-to-End Distributed Tracing (`ingress` & `cloud-deploy`):** Every inbound request generates or propagates a correlation ID (`X-Amzn-Trace-Id` / W3C `traceparent`) across **API Gateway**, **AWS Lambda**, **SQS** message attributes, and **Step Functions** executions via **AWS X-Ray** / **OpenTelemetry**, allowing operators to trace a single beer pour from tap open to asynchronous receipt generation.
-- **Structured Logging & Business Context:** All ingress and background handlers emit single-line structured JSON logs enriched with high-cardinality domain identifiers (`tapId`, `pourId`, `eventSequence`), enabling instant root-cause queries in **CloudWatch Logs Insights** during live festival traffic.
-- **Dashboards & Proactive Alerting (`cloud-deploy`):** Production IaC templates provision live **Amazon CloudWatch Dashboards** and **AWS X-Ray Service Maps** for real-time visual monitoring in the browser. Native serverless metrics (Lambda error rates, p99 cold/warm latency, DynamoDB throttling) and **SQS Dead-Letter Queues (DLQs)** are wired to **CloudWatch Alarms** and **Amazon SNS** (email, SMS, or **AWS Chatbot** for Slack/Teams) to push immediate alerts on stuck pours or failed billing workers before they impact bar operations.
+The architecture preserves **zero framework overhead** and keeps `core` 100% free of monitoring SDKs by embedding observability directly at the hexagonal boundaries:
 
----
-
-### Accessing Observability (Zero Open Ports)
-
-Because the platform runs on managed AWS serverless infrastructure, **no custom network ports or self-hosted monitoring servers are exposed**. Operators inspect system health over standard **HTTPS (443)** via IAM-authenticated AWS Console links exported by `cloud-deploy`:
-
-* **Live Operational Dashboard:** Open the `CloudWatchDashboardUrl` output from your stack deployment to view real-time pour rates, safety shutoffs, and Lambda latency in your browser.
-* **Distributed Trace Map:** Open **AWS X-Ray -> Service Map** in the AWS Console to visually trace requests across API Gateway, Lambda, SQS, and Step Functions.
-* **Push Alerts (No Polling Required):** Subscribe an email address, phone number, or Slack channel (via **AWS Chatbot**) to the `AlertsTopicArn` SNS output to receive instant notifications whenever an SQS Dead-Letter Queue or CloudWatch Alarm triggers.
-* **Local Development:** When running locally with `Adapters.jdk()`, structured telemetry logs stream directly to standard output (`stdout`) with zero network ports required.
+* **Domain-Level Telemetry Port (`core` & `adapters`):** Business-critical milestones (e.g., tap actuation, safety auto-shutoff triggers, sequence conflicts) are modeled through a lightweight outbound port (`TelemetryPort`), keeping domain logic pure. Local runs (`Adapters.jdk()`) stream structured logs to standard output (`stdout`), while cloud deployments (`Adapters.aws()`) emit single-line JSON logs and custom **Amazon CloudWatch** metrics without heavy reflection-based agents.
+* **End-to-End Distributed Tracing (`ingress` & `cloud-deploy`):** Every inbound request carries a correlation ID (`X-Amzn-Trace-Id` / W3C `traceparent`) across **API Gateway**, **AWS Lambda**, **SQS** message attributes, and **Step Functions** executions via **AWS X-Ray** / **OpenTelemetry**, making a single beer pour traceable from tap open to asynchronous receipt generation.
+* **Structured Logging & Business Context:** All ingress and background logs contain high-cardinality domain identifiers (`tapId`, `pourId`, `eventSequence`), enabling instant root-cause queries in **CloudWatch Logs Insights**.
+* **Live Dashboards, Push Alerts & Zero Open Ports (`cloud-deploy`):** Because the cloud infrastructure is fully managed and serverless, **no custom network ports or self-hosted monitoring servers exist**. Operational views are accessible over standard **HTTPS (443)** via IAM-authenticated AWS Console links exported by `cloud-deploy`:
+  * **Live Operational Dashboard:** The exported `CloudWatchDashboardUrl` displays real-time pour rates, safety shutoffs, and Lambda latency in the browser within 10–60 seconds of traffic.
+  * **Visual Service Map:** **AWS X-Ray -> Service Map** provides an interactive graph of live request flows across API Gateway, Lambda, DynamoDB, SQS, and Step Functions.
+  * **Automated Push Alerts:** The `AlertsTopicArn` **Amazon SNS** output connects directly to email, SMS, or Slack (via **AWS Chatbot**), delivering instant notifications whenever an **SQS Dead-Letter Queue (DLQ)** or **CloudWatch Alarm** detects a stuck pour or failed billing worker.
 
 ---
 
