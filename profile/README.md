@@ -163,38 +163,37 @@ Because each architectural boundary is isolated in its own repository with swapp
 * **Cloud Wiring Smoke Test (`cloud-deploy`):** Runs a targeted dry-run smoke test with the **AWS factories** against a local cloud emulator solely to verify IAM permissions, Infrastructure as Code templates, and cloud serialization before live rollout.
 
 ---
-
 ## AWS Serverless Technology Stack
 
-The cloud deployment uses a team of **AWS Always Free Tier** services—each plugged into an outer adapter so `core` stays 100% independent of the cloud:
+The cloud deployment uses a team of **AWS Always Free Tier** services—each plugged into an outer adapter so `core` stays 100% pure Java 24 with zero framework dependencies:
 
-| Category | AWS Service | Repository | Primary Architectural Role |
-| :--- | :--- | :--- | :--- |
-| **Ingress & Routing** | **Amazon API Gateway** | `ingress` & `cloud-deploy` | Managed HTTP entry point, request routing, and rate limiting. |
-| **Compute** | **AWS Lambda** | `ingress` & `cloud-deploy` | On-demand, stateless Java 24 execution workers. |
-| **Domain Persistence** | **Amazon DynamoDB** | `persistence` (`sugarcoat-labs`) | Transactional database for append-only event streams and tap state. |
-| **Static Files & Hosting** | **Amazon S3** | `ui`, `adapters` & `ingress` | Static web hosting and immutable receipt archiving. |
-| **Messaging & Resilience** | **Amazon SQS** | `ingress` & `cloud-deploy` | Asynchronous message bus providing fault tolerance, decoupling, and guaranteed delivery. |
-| **State & Workflows** | **AWS Step Functions** | `ingress` & `cloud-deploy` | Durable state machines for time-bound, multi-step lifecycles. |
-| **Observability** | **Amazon CloudWatch** | `adapters` & `cloud-deploy` | Structured log aggregation, custom metrics, dashboards, and threshold alarms. |
-| **Observability** | **AWS X-Ray** | `ingress` & `cloud-deploy` | End-to-end distributed request tracing and service maps. |
-| **Observability** | **Amazon SNS** | `cloud-deploy` | Outbound push notification bus for operational alerts. |
-| **Security & Secrets** | **AWS SSM Parameter Store** | `adapters` & `cloud-deploy` | Encrypted runtime configuration and secret vault. |
-| **Governance & IAM** | **IAM OIDC & AWS Budgets** | `cloud-deploy` | Keyless CI/CD federation and automated cost guardrails. |
+| Category | AWS Service | Analogs in Classical Architecture | Repository | Primary Architectural Role |
+| :--- | :--- | :--- | :--- | :--- |
+| **Ingress & Routing** | **Amazon API Gateway** | **Nginx / Spring Cloud Gateway** | `ingress` & `cloud-deploy` | Managed HTTP entry point, request routing, and rate limiting. |
+| **Hardware Ingress *(Next Stage)*** | **AWS IoT Core** | **Mosquitto / EMQX MQTT Brokers** | `ingress` & `cloud-deploy` | Managed MQTT broker for physical tap hardware telemetry and actuation *(next stage)*. |
+| **Compute** | **AWS Lambda** | **Tomcat / Embedded Jetty / Netty** | `ingress` & `cloud-deploy` | On-demand, stateless Java 24 execution workers. |
+| **Domain Persistence** | **Amazon DynamoDB** | **PostgreSQL + Hibernate / JPA** | `persistence` | Transactional database for append-only event streams and tap state. |
+| **Static Files & Hosting** | **Amazon S3** | **Nginx Static Server / Local Disk** | `ui`, `adapters` & `ingress` | Static web hosting and immutable receipt archiving. |
+| **Async & Non-Blocking** | **Amazon SQS** | **RxJava / Project Reactor / Kafka / RabbitMQ** | `ingress` & `cloud-deploy` | Durable message queue that triggers background Lambda workers for non-blocking async jobs. |
+| **State & Workflows** | **AWS Step Functions** | **Quartz Scheduler / Camunda** | `ingress` & `cloud-deploy` | Durable state machines for time-bound, multi-step lifecycles. |
+| **Observability** | **Amazon CloudWatch** | **ELK Stack / Prometheus / Grafana** | `adapters` & `cloud-deploy` | Structured log aggregation, custom metrics, dashboards, and threshold alarms. |
+| **Observability** | **AWS X-Ray** | **Jaeger / Zipkin / OpenTelemetry Agents** | `ingress` & `cloud-deploy` | End-to-end distributed request tracing and service maps. |
+| **Observability** | **Amazon SNS** | **Alertmanager / Custom SMTP Mailers** | `cloud-deploy` | Outbound push notification bus for operational alerts. |
+| **Security & Secrets** | **AWS SSM Parameter Store** | **HashiCorp Vault / Spring Cloud Config** | `adapters` & `cloud-deploy` | Encrypted runtime configuration and secret vault. |
+| **Governance & IAM** | **IAM OIDC & AWS Budgets** | **Static Service Accounts / Manual Audits** | `cloud-deploy` | Keyless CI/CD federation and automated cost guardrails. |
 
-### Services Roles
+### Mapping to Classical Architecture & Request Flow
 
-- **Amazon API Gateway:** Enforces schema validation, custom header authentication (`X-Festival-Pass`), and a 5-requests-per-second throttle before traffic reaches compute resources, supporting both the Angular web client and future IoT tap hardware.
-- **AWS Lambda:** Runs pure-Java 24 binaries without heavy reflection frameworks, keeping cold starts near ~150 ms and reducing idle compute consumption to zero.
-- **Amazon DynamoDB:** Guarantees atomic state transitions and prevents concurrent pour collisions on the same tap through conditional writes and event sequence checks.
-- **Amazon S3:** Delivers the compiled Angular 21 bundle directly to browsers (alongside GitHub Pages) and stores finalized pour receipts generated by background workers.
-- **Amazon SQS:** Isolates immediate HTTP pour completion from slower downstream billing and receipt jobs through durable buffering, automatic retries, and Dead-Letter Queues (DLQs).
-- **AWS Step Functions:** Tracks long-running timers—such as safety auto-shutoffs for open taps—without keeping stateful background threads or servers alive.
-- **Amazon CloudWatch:** Ingests single-line JSON logs and `TelemetryPort` business metrics without reflection-based agents, rendering real-time operational views over standard HTTPS (443).
-- **AWS X-Ray:** Propagates correlation IDs (`X-Amzn-Trace-Id` / W3C `traceparent`) across synchronous and asynchronous boundaries to expose millisecond latency breakdowns per pour.
-- **Amazon SNS:** Connects CloudWatch Alarms and SQS Dead-Letter Queues directly to email, SMS, or Slack/Teams channels (via AWS Chatbot) for immediate incident notification.
-- **AWS SSM Parameter Store:** Resolves sensitive runtime values—such as the private invite pass and admin credentials—dynamically via an outbound adapter port, keeping secrets out of source control.
-- **IAM OIDC & AWS Budgets:** Replaces static CI/CD access keys with short-lived GitHub Actions federation roles, paired with a $1.00 billing alarm to enforce zero-cost sandbox operation.
+- **Amazon S3 (Analog: Nginx Static Servers & Local Disk Storage):** Serves the compiled Angular 21 bundle directly to browsers (alongside GitHub Pages) and stores finalized pour receipts without maintaining a web server or shared filesystem.
+- **Amazon API Gateway (Analog: Nginx & Spring Cloud Gateway):** Intercepts incoming HTTP requests from the Angular app, validates the `X-Festival-Pass` header, and enforces a 5-requests-per-second throttle at the network edge.
+- **AWS IoT Core *(Next Stage — Physical Hardware)* (Analog: Mosquitto & Self-Hosted MQTT Brokers):** Provides a managed, mutually-authenticated MQTT message broker for the next stage when real physical tap controllers replace browser simulation—routing hardware flow-meter events directly into existing Lambda handlers without altering `core`.
+- **AWS SSM Parameter Store (Analog: HashiCorp Vault & Spring Cloud Config):** Supplies encrypted runtime secrets (such as the private invite pass and admin credentials) to outer adapters at startup without running a dedicated configuration server.
+- **AWS Lambda (Analog: Tomcat, Jetty & Spring Boot Containers):** Wakes up in ~150 ms to run pure-Java 24 domain logic (`core`), recording pours in **Amazon DynamoDB** (analogous to **PostgreSQL + Hibernate/JPA** with atomic, schema-less event storage) before shutting down to zero cost.
+- **AWS Step Functions (Analog: Quartz Scheduler & Camunda):** Tracks time-bound lifecycles—such as enforcing a safety auto-shutoff timer if a tap remains open too long—without keeping JVM scheduler threads or stateful workflow engines alive.
+- **Amazon SQS (Analog: RxJava, Project Reactor, Kafka & RabbitMQ):** Keeps user requests non-blocking without pulling reactive stream libraries (`Observable`, `Flux`, `Mono`) or heavy broker clients into Java code. SQS holds post-pour messages on disk and automatically instantiates background **AWS Lambda** workers to execute jobs across `core` and outer adapters (S3 receipt archiving, billing, alerts), surviving crashes via automatic retries and Dead-Letter Queues (DLQs).
+- **AWS X-Ray (Analog: Jaeger, Zipkin & Bytecode Agents):** Propagates correlation IDs across API Gateway, Lambda, DynamoDB, SQS, and Step Functions to map end-to-end latency per pour without attaching heavy reflection agents to the JVM.
+- **Amazon CloudWatch & Amazon SNS (Analogs: ELK Stack, Prometheus, Grafana & Alertmanager):** CloudWatch ingests single-line JSON logs and `TelemetryPort` metrics into live browser dashboards and alarms over standard HTTPS (443), triggering **SNS** push alerts (email, SMS, or Slack) whenever a Dead-Letter Queue or error threshold fires.
+- **IAM OIDC & AWS Budgets (Analogs: Static Credentials & Manual Billing Checks):** OpenID Connect federation grants GitHub Actions short-lived deployment access without stored AWS keys, while a $1.00 billing alarm enforces zero-cost operation.
 
 ---
 
