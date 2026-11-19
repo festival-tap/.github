@@ -20,15 +20,14 @@ Built as a polyrepo of single-responsibility modules, the project features execu
 <details open>
 <summary><strong>Repositories</strong></summary>
 
-* [Repositories](#repositories)
-* [`festival-tap-user-stories`](#festival-tap-user-stories) — Executable Behavioral Specs & Acceptance Suites
-* [`festival-tap-api-contract`](#festival-tap-api-contract) — Design-First API Contract (OpenAPI 3.0)
-* [`festival-tap-ui`](#festival-tap-ui) — Angular 21 Web Application
-* [`festival-tap-core`](#festival-tap-core) — Pure Java 24 Hexagon Core
-* [`festival-tap-persistence`](#festival-tap-persistence) — Swappable JDK & AWS Persistence Adapters
-* [`festival-tap-ingress`](#festival-tap-ingress) — Swappable Pure JDK & AWS Serverless Ingress Adapters
-* [`festival-tap-adapters`](#festival-tap-adapters) — Swappable JDK & AWS Support Adapters
-* [`festival-tap-cloud-deploy`](#festival-tap-cloud-deploy) — Composition Root, E2E Runner & IaC
+* [`festival-tap/user-stories`](#festival-tapuser-stories-executable-behavioral-specs--acceptance-suites) — Executable Behavioral Specs & Acceptance Suites
+* [`festival-tap/api-contract`](#festival-tapapi-contract-design-first-api-contract--openapi-30--swagger) — Design-First API Contract (OpenAPI 3.0)
+* [`festival-tap/ui`](#festival-tapui-external-client--angular-web-application) — Angular 21 Web Application
+* [`festival-tap/core`](#festival-tapcore-hexagon-core--domain--ports) — Pure Java 24 Hexagon Core
+* [`festival-tap/persistence`](#festival-tappersistence-outbound-persistence-adapters--jdk--aws) — Swappable JDK & AWS Persistence Adapters
+* [`festival-tap/ingress`](#festival-tapingress-inbound-ingress-adapters--jdk--aws) — Swappable Pure JDK & AWS Serverless Ingress Adapters
+* [`festival-tap/adapters`](#festival-tapadapters-miscellaneous-support-adapters--jdk--aws) — Swappable JDK & AWS Support Adapters
+* [`festival-tap/cloud-deploy`](#festival-tapcloud-deploy-composition-root-e2e-runner--cloud-infrastructure) — Composition Root, E2E Runner & IaC
 </details>
 
 <details open>
@@ -53,12 +52,11 @@ Built as a polyrepo of single-responsibility modules, the project features execu
 <details open>
 <summary><strong>Deployment, Security & Usage</strong></summary>
 
-* [Zero-Cost Delivery & Dry Run Deployment Strategy](#zero-cost-delivery--dry-run-deployment-strategy)
-* [Dry Run to Cloud Promotion Flow](#dry-run-to-cloud-promotion-flow)
+* [Zero-Cost Delivery & Dry-Run Deployment Strategy](#zero-cost-delivery--dry-run-deployment-strategy)
+* [Dry-Run to Cloud Promotion Flow](#dry-run-to-cloud-promotion-flow)
 * [Access Control & Private Cloud Sandbox](#access-control--private-cloud-sandbox)
 * [Using the Application](#using-the-application)
 </details>
-
 
 ---
 
