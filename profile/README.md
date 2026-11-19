@@ -11,6 +11,7 @@ To keep business rules strictly isolated from cloud infrastructure and frontend 
 ## Table of Contents
 
 * [Architectural Principles](#architectural-principles)
+* [Economic & Ergonomic Impact](#economic--ergonomic-impact)
 * [Repositories](#repositories)
   * [`festival-tap/user-stories`](#festival-tapuser-stories-executable-behavioral-specs--acceptance-suites) — Executable Behavioral Specs & Acceptance Suites
   * [`festival-tap/api-contract`](#festival-tapapi-contract-design-first-api-contract--openapi-30--swagger) — Design-First API Contract (OpenAPI 3.0)
@@ -24,6 +25,8 @@ To keep business rules strictly isolated from cloud infrastructure and frontend 
 * [User Stories & End-to-End Acceptance Suites](#user-stories--end-to-end-acceptance-suites)
 * [Outside-In Development Workflow](#outside-in-development-workflow)
 * [Non-Redundant Testing Pyramid](#non-redundant-testing-pyramid)
+* [AWS Serverless Technology Stack](#aws-serverless-technology-stack)
+* [Serverless Scalability & Partitioning](#serverless-scalability--partitioning)
 * [Zero-Cost Delivery & Dry-Run Deployment Strategy](#zero-cost-delivery--dry-run-deployment-strategy)
 * [Access Control & Private Cloud Sandbox](#access-control--private-cloud-sandbox)
 * [Using the Application](#using-the-application)
@@ -37,6 +40,17 @@ To keep business rules strictly isolated from cloud infrastructure and frontend 
 * **Cross-Project Infrastructure Reuse:** Generic, domain-agnostic infrastructure—such as event-sourcing and state-store persistence engines—is extracted into standalone libraries under the [`sugarcoat-labs`](https://github.com) organization (`persistence-engines-core`, `persistence-engines-dynamodb`). Keeping these engines decoupled from business domains turns complex storage and concurrency mechanics into battle-tested, TCK-verified building blocks ready for immediate reuse across multiple projects.
 * **Autonomous Polyrepo Topology (Isolation & Parallelization):** Each architectural boundary lives in its own repository with an independent build, test, and release lifecycle. Designed to mirror a distributed multi-team engineering workflow, this separation enforces strict contract-first integration (OpenAPI + Pact), prevents accidental coupling, and allows foundation layers (`core`, `api-contract`) and adapter layers (`ui`, `persistence`, `ingress`, `adapters`) to evolve and verify in parallel.
 * **AI-Native Repository Sizing & Context Purity:** Small, single-responsibility repositories directly maximize the accuracy and autonomy of AI coding agents (Copilot, Claude Code, Cursor). By eliminating cross-layer noise, the entire module fits cleanly inside an agent's active context window; strict compile-time dependency boundaries prevent architectural shortcuts; explicit contracts (`openapi.yaml`, Java interfaces) act as deterministic specifications; and sub-second local test loops enable rapid autonomous self-correction.
+
+---
+
+## Economic & Ergonomic Impact
+
+Every architectural decision in `festival-tap` directly reduces cloud operating costs while improving developer and user ergonomics compared to traditional framework-heavy monoliths:
+
+* **Eliminating the Serverless "Framework Tax" (Economic):** Cloud functions bill by **memory allocated × execution duration (GB-seconds)**. Traditional framework containers require 512 MB–1 GB of RAM and 3–6 seconds to scan annotations on cold starts—burning through free-tier quotas or forcing expensive, always-on *Provisioned Concurrency* instances. Pure Java 24 boots in **~150 ms** with minimal memory, ensuring **$0/month** cloud operation with zero pre-warmed servers.
+* **Sub-Second Feedback Loops (Developer Ergonomics):** Swappable **JDK** factories (`Ingress.jdk()`, `Persistence.jdk()`, `Adapters.jdk()`) allow full end-to-end user stories and Pact contract tests to run in milliseconds in pure Java—eliminating multi-minute Docker/Testcontainers startups during daily coding.
+* **Instant Tap Responsiveness (User Ergonomics):** At a live self-service bar, a 5-second cold-start delay makes a dispenser feel broken. Sub-second Lambda initialization ensures immediate tap actuation without keeping idle infrastructure running overnight.
+* **Zero-Friction AI Collaboration (Engineering Velocity):** Small, dependency-isolated repositories eliminate cross-layer noise, allowing AI coding agents to grasp 100% of a repository's context and generate accurate, leak-free code on the first pass.
 
 ---
 
@@ -133,6 +147,33 @@ Because each architectural boundary is isolated in its own repository with swapp
 * **Sliced Adapter & Contract Verification (`persistence`, `ingress`, `adapters`, `ui`):** Each adapter repository tests its own translation logic in isolation—including **Pact consumer/provider** HTTP verification against the native `jdk.httpserver` ingress and **DynamoDB Local** codec tests for AWS persistence.
 * **Pure-JDK End-to-End Acceptance (`cloud-deploy`):** Executes all functional user-story acceptance scripts (`user-stories`) against the full stack assembled with **pure-JDK factories** (`Ingress.jdk()` + `Core` + `Persistence.jdk()` + `Adapters.jdk()`), delivering sub-second E2E validation with zero Docker or cloud overhead.
 * **Cloud Wiring Smoke Test (`cloud-deploy`):** Runs a targeted dry-run smoke test with the **AWS factories** against a local cloud emulator solely to verify IAM permissions, Infrastructure as Code templates, and cloud serialization before live rollout.
+
+---
+
+## AWS Serverless Technology Stack
+
+The cloud deployment uses a team of **AWS Always Free Tier** services—each plugged into an outer adapter so `core` stays 100% independent of the cloud:
+
+| AWS Service | Repository | Plain-English Role in `festival-tap` |
+| :--- | :--- | :--- |
+| **Amazon API Gateway** | `ingress` & `cloud-deploy` | The front door of the API: routes HTTP requests from the web app to the right backend handler and blocks traffic spikes (max 5 requests/second). |
+| **AWS Lambda** | `ingress` & `cloud-deploy` | On-demand Java 24 workers that wake up in ~150 ms to handle a single request or background task and shut down immediately—costing **$0** when idle. |
+| **Amazon DynamoDB** | `persistence` (`sugarcoat-labs`) | A fast serverless database that stores the immutable stream of events emitted by the taps alongside current dispenser configurations. |
+| **Amazon SQS** | `ingress` & `cloud-deploy` | A reliable message queue that lets the bar finish a pour immediately while handing off slower tasks (like billing or receipt generation) to background workers. |
+| **AWS Step Functions** | `ingress` & `cloud-deploy` | A managed state machine with built-in timers that tracks multi-step workflows (such as auto-closing a forgotten tap after a timeout) without keeping a server running. |
+| **Amazon S3** | `ui`, `adapters` & `ingress` | Simple cloud file storage that serves the Angular web app to browsers (alongside GitHub Pages) and archives generated pour receipts. |
+| **AWS SSM Parameter Store** | `adapters` & `cloud-deploy` | A free, encrypted vault that holds the private invite pass (`X-Festival-Pass`) and admin credentials outside the source code. |
+| **IAM OIDC & AWS Budgets** | `cloud-deploy` | Lets GitHub Actions deploy updates safely without storing permanent AWS keys, backed by a $1.00 billing alarm to guarantee **$0/mo** operation. |
+
+---
+
+## Serverless Scalability & Partitioning
+
+By adopting a fully serverless stack, infrastructure capacity planning, server sizing, and manual auto-scaling rules are eliminated—shifting architectural focus purely to clean data partitioning:
+
+* **Zero-Config Compute & Messaging Elasticity:** **AWS Lambda**, **API Gateway**, **SQS**, and **S3** scale automatically from zero to thousands of concurrent festival pours without load balancers, container clusters, or idle servers.
+* **Natural High-Cardinality Partitioning:** Each beer dispenser emits its immutable event stream under its own independent partition identity (`tapId`). Because every tap writes to its own stream, **Amazon DynamoDB** distributes load evenly across physical storage partitions—preventing single-key bottlenecks ("hot partitions") and enabling seamless horizontal growth as more taps are added.
+* **Stateless Execution:** Because all operational state lives either in DynamoDB event streams or inside managed **Step Functions** workflows, compute workers remain completely stateless and horizontally interchangeable.
 
 ---
 
