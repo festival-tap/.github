@@ -4,7 +4,7 @@
 
 **festival-tap** is a cloud-native, event-sourced self-service beer tap platform built on **Hexagonal Architecture (Ports & Adapters)**, **Java 24**, **Angular 21**, and **AWS Serverless**.
 
-To keep business rules strictly isolated from cloud infrastructure and frontend delivery, the system is decomposed into seven single-responsibility repositories. Pure domain logic sits at the center (`core`), surrounded by swappable adapter factories (`persistence`, `ingress`, `adapters`), a shared REST specification (`api-contract`), the web client (`ui`), and an assembly root (`cloud-deploy`) that wires and deploys the entire stack.
+To keep business rules strictly isolated from cloud infrastructure and frontend delivery, the system is decomposed into eight single-responsibility repositories. Pure domain logic sits at the center (`core`), surrounded by swappable adapter factories (`persistence`, `ingress`, `adapters`), a shared REST specification (`api-contract`), the web client (`ui`), and an assembly root (`cloud-deploy`) that wires and deploys the entire stack.
 
 ---
 
@@ -21,9 +21,9 @@ To keep business rules strictly isolated from cloud infrastructure and frontend 
   * [`festival-tap/adapters`](#festival-tapadapters-miscellaneous-support-adapters--jdk--aws) — Swappable JDK & AWS Support Adapters
   * [`festival-tap/cloud-deploy`](#festival-tapcloud-deploy-composition-root-e2e-runner--cloud-infrastructure) — Composition Root, E2E Runner & IaC
 * [API Contracts & Consumer-Driven Pact Testing](#api-contracts--consumer-driven-pact-testing)
-* [Non-Redundant Testing Pyramid](#non-redundant-testing-pyramid)
 * [User Stories & End-to-End Acceptance Suites](#user-stories--end-to-end-acceptance-suites)
 * [Outside-In Development Workflow](#outside-in-development-workflow)
+* [Non-Redundant Testing Pyramid](#non-redundant-testing-pyramid)
 * [Zero-Cost Delivery & Dry-Run Deployment Strategy](#zero-cost-delivery--dry-run-deployment-strategy)
 * [Access Control & Private Cloud Sandbox](#access-control--private-cloud-sandbox)
 * [Using the Application](#using-the-application)
@@ -63,7 +63,7 @@ The standalone Angular 21 frontend providing the public self-service bar interfa
 The pure-Java 24 heart of the Beer Tap Dispenser application holding all business rules, domain models, and port interfaces with zero external runtime dependencies.
 * **Pure Domain Production Code:** `src/main` contains domain models (taps, pours, pricing), immutable events, inbound use-case interfaces, outbound port interfaces (including clock and ID ports), and domain business services with zero framework, persistence-engine, or cloud SDK dependencies.
 * **Deterministic Testing:** `src/test` uses [`sugarcoat-labs/persistence-engines-core`](https://github.com) (`Jdk.inMemory()`) and lightweight test doubles in test scope to verify pricing rules, pour timeouts, and end-to-end business workflows with zero circular dependencies on downstream adapter repositories.
-* **Boundary Enforcement & Publishing:** Enforces zero external imports in `src/main` via ArchUnit tests and publishes versioned JAR artifacts for downstream adapters.
+* **Boundary Enforcement & Publishing:** Enforces zero external imports in `src/main` via isolated Maven/JPMS module boundaries and publishes versioned JAR artifacts for downstream adapters.
 
 ### [`festival-tap/persistence`](https://github.com) *(Outbound Persistence Adapters — JDK & AWS)*
 A single repository housing the thin outbound adapters that bridge `core` domain persistence ports (`TapEventPublishingPort`, `TapEventFetchingPort`, `TapRegistryPort`) to [`sugarcoat-labs/persistence-engines-core`](https://github.com) and [`sugarcoat-labs/persistence-engines-dynamodb`](https://github.com).
