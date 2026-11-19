@@ -138,6 +138,8 @@ Feature delivery follows a strict **Contract-First, Outside-In** progression dri
    * **`ui`:** Builds Angular features against `api-contract` and publishes **Pact consumer** contracts verified by `ingress`.
 4. **Assemble, Validate & Ship (`cloud-deploy`):** Wire the full application via pure constructor injection, run all `user-stories` acceptance tests against the **pure-JDK** assembly, execute the local AWS emulator dry-run smoke test, and deploy to AWS.
 
+> For the sequential, critical-path build checklist across all eight repositories, see the **[Execution Roadmap](../ROADMAP.md)**.
+
 ---
 
 ## Release Governance & Version Hygiene
