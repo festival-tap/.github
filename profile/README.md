@@ -10,28 +10,55 @@ Built as a polyrepo of single-responsibility modules, the project features execu
 
 ## Table of Contents
 
+<details open>
+<summary><strong>Overview & Strategy</strong></summary>
+
 * [Architectural Principles](#architectural-principles)
 * [Economic & Ergonomic Impact](#economic--ergonomic-impact)
+</details>
+
+<details open>
+<summary><strong>Repositories</strong></summary>
+
 * [Repositories](#repositories)
-  * [`festival-tap/user-stories`](#festival-tapuser-stories) – Executable Behavioral Specs & Acceptance Suites
-  * [`festival-tap/api-contract`](#festival-tapapi-contract) – Design-First API Contract (OpenAPI 3.0)
-  * [`festival-tap/ui`](#festival-tapui) – Angular 21 Web Application
-  * [`festival-tap/core`](#festival-tapcore) – Pure Java 24 Hexagon Core
-  * [`festival-tap/persistence`](#festival-tappersistence) – Swappable JDK & AWS Persistence Adapters
-  * [`festival-tap/ingress`](#festival-tapingress) – Swappable Pure-JDK & AWS Serverless Ingress Adapters
-  * [`festival-tap/adapters`](#festival-tapadapters) – Swappable JDK & AWS Support Adapters
-  * [`festival-tap/cloud-deploy`](#festival-tapcloud-deploy) – Composition Root, E2E Runner & IaC
+* [`festival-tap-user-stories`](#festival-tap-user-stories) — Executable Behavioral Specs & Acceptance Suites
+* [`festival-tap-api-contract`](#festival-tap-api-contract) — Design-First API Contract (OpenAPI 3.0)
+* [`festival-tap-ui`](#festival-tap-ui) — Angular 21 Web Application
+* [`festival-tap-core`](#festival-tap-core) — Pure Java 24 Hexagon Core
+* [`festival-tap-persistence`](#festival-tap-persistence) — Swappable JDK & AWS Persistence Adapters
+* [`festival-tap-ingress`](#festival-tap-ingress) — Swappable Pure JDK & AWS Serverless Ingress Adapters
+* [`festival-tap-adapters`](#festival-tap-adapters) — Swappable JDK & AWS Support Adapters
+* [`festival-tap-cloud-deploy`](#festival-tap-cloud-deploy) — Composition Root, E2E Runner & IaC
+</details>
+
+<details open>
+<summary><strong>Development, Testing & Governance</strong></summary>
+
 * [API Contracts & Consumer-Driven Pact Testing](#api-contracts--consumer-driven-pact-testing)
 * [User Stories & End-to-End Acceptance Suites](#user-stories--end-to-end-acceptance-suites)
 * [Outside-In Development Workflow](#outside-in-development-workflow)
 * [Release Governance & Version Hygiene](#release-governance--version-hygiene)
 * [Non-Redundant Testing Pyramid](#non-redundant-testing-pyramid)
+</details>
+
+<details open>
+<summary><strong>Architecture & Cloud Infrastructure</strong></summary>
+
 * [AWS Serverless Technology Stack](#aws-serverless-technology-stack)
+* [Mapping to Classical Architecture & Request Flow](#mapping-to-classical-architecture--request-flow)
 * [Serverless Scalability & Partitioning](#serverless-scalability--partitioning)
 * [Observability & Production Readiness](#observability--production-readiness)
-* [Zero-Cost Delivery & Dry-Run Deployment Strategy](#zero-cost-delivery--dry-run-deployment-strategy)
+</details>
+
+<details open>
+<summary><strong>Deployment, Security & Usage</strong></summary>
+
+* [Zero-Cost Delivery & Dry Run Deployment Strategy](#zero-cost-delivery--dry-run-deployment-strategy)
+* [Dry Run to Cloud Promotion Flow](#dry-run-to-cloud-promotion-flow)
 * [Access Control & Private Cloud Sandbox](#access-control--private-cloud-sandbox)
 * [Using the Application](#using-the-application)
+</details>
+
 
 ---
 
