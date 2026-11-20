@@ -2,7 +2,7 @@
 
 ---
 
-**festival-tap** is a cloud-native, event-sourced self-service beer tap platform built using **Hexagonal Architecture**, **Java**, **Angular**, and **AWS Serverless infrastructure**.
+**festival-tap** is an event-sourced self-service beer tap platform built using **Hexagonal Architecture**, **Java**, **Angular**, and **AWS Serverless infrastructure**, and tailored for cloud-native and AI-assisted teams.
 
 Built as a polyrepo of single-responsibility modules, the project features executable behavioral specifications with black-box acceptance suites (`user-stories`) as its core source of value and quality gate, pure domain logic at the center (`core`), isolated adapters (`persistence`, `ingress`, `adapters`), a shared REST contract (`api-contract`), a web interface (`ui`), and an assembly root (`cloud-deploy`) for infrastructure orchestration.
 
