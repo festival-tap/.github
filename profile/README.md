@@ -75,7 +75,7 @@ Built as a polyrepo of single-responsibility modules, the project features execu
 Every architectural decision in `festival-tap` directly reduces cloud operating costs while improving developer and user ergonomics compared to traditional framework-heavy monoliths:
 
 * **Eliminating the Serverless "Framework Tax" (Economic):** Cloud functions bill by **memory allocated × execution duration (GB-seconds)**. Traditional framework containers require 512 MB–1 GB of RAM and 3–6 seconds to scan annotations on cold starts—burning through free-tier quotas or forcing expensive, always-on *Provisioned Concurrency* instances. Pure Java 24 boots in **~150 ms** with minimal memory, ensuring **$0/month** cloud operation with zero pre-warmed servers.
-* **Sub-Second Feedback Loops (Developer Ergonomics):** Swappable **JDK** factories (`Ingress.jdk()`, `Persistence.jdk()`, `Adapters.jdk()`) allow full end-to-end user stories and Pact contract tests to run in milliseconds in pure Java—eliminating multi-minute Docker/Testcontainers startups during daily coding.
+* **Sub-Second Feedback Loops (Developer Ergonomics):** Swappable **JDK** factories (`Ingress.jdk()`, `Persistence.jdk()`, `Adapters.jdk()`) allow full end-to-end user stories—alongside isolated `Ingress.jdk()` Pact contract verifications—to run in milliseconds in pure Java, eliminating multi-minute Docker/Testcontainers startups during daily coding.
 * **Instant Tap Responsiveness (User Ergonomics):** At a live self-service bar, a 5-second cold-start delay makes a dispenser feel broken. Sub-second Lambda initialization ensures immediate tap actuation without keeping idle infrastructure running overnight.
 * **Zero-Friction AI Collaboration (Engineering Velocity):** Small, dependency-isolated repositories eliminate cross-layer noise, allowing AI coding agents to grasp 100% of a repository's context and generate accurate, leak-free code on the first pass.
 
@@ -172,9 +172,9 @@ Feature delivery follows a strict **Contract-First, Outside-In** progression dri
 
 Operating an eight-repository polyrepo requires disciplined release mechanics so downstream consumers never drift out of sync, while preserving every working milestone permanently:
 
-* **Semantic Versioning (SemVer) on Foundation Artifacts:** Every release of `core`, `api-contract`, and `user-stories` follows strict `MAJOR.MINOR.PATCH` tagging (`v1.0.0`). Breaking schema or port changes increment the `MAJOR` version, while backward-compatible additions increment `MINOR` or `PATCH`.
-* **Immutable Package & Tag Archiving (Zero Oblivion):** Foundation libraries (`core`, `api-contract`) publish immutable versioned artifacts to **GitHub Packages**, while `user-stories` and `cloud-deploy` are pinned via immutable Git release tags. Every functional milestone of the application remains permanently preserved, auditable, and reproducible on demand—nothing ever falls into oblivion.
-* **Automated Dependency Propagation (Dependabot):** Downstream repositories (`persistence`, `ingress`, `adapters`, `ui`, `cloud-deploy`) run **GitHub Dependabot** to automatically open Pull Requests whenever a new foundation version is published, triggering isolated CI and Pact verification before merge.
+* **Semantic Versioning (SemVer) Across Repositories:** Every release of `core`, `api-contract`, `user-stories`, and the adapter modules follows strict `MAJOR.MINOR.PATCH` tagging (`v1.0.0`). Breaking schema or port changes increment the `MAJOR` version, while backward-compatible additions increment `MINOR` or `PATCH`.
+* **Immutable Package & Tag Archiving:** Published libraries (`core`, `api-contract`, `persistence`, `ingress`, `adapters`) reside as immutable versioned artifacts in **GitHub Packages**, while `user-stories`, `ui`, and `cloud-deploy` are pinned via immutable Git release tags—keeping every milestone permanently preserved, auditable, and reproducible on demand.
+* **Automated Dependency Propagation (Dependabot):** Downstream repositories (`persistence`, `ingress`, `adapters`, `ui`, `cloud-deploy`) run **GitHub Dependabot** to automatically open Pull Requests whenever upstream artifacts update, triggering isolated CI, Pact verification, and acceptance suites before merge.
 
 ---
 
@@ -183,11 +183,12 @@ Operating an eight-repository polyrepo requires disciplined release mechanics so
 Because each architectural boundary is isolated in its own repository with swappable **JDK** and **AWS** factories, every layer is verified once at its fastest possible boundary without redundant intermediate assemblies:
 
 * **Domain Unit & In-Memory Integration (`core`):** Verifies pure pricing rules, pour timeouts, and full event-sourcing flows in milliseconds using `Jdk.inMemory()` and lightweight test doubles—eliminating any need for a separate "core + outbound adapters" test assembly.
-* **Sliced Adapter & Contract Verification (`persistence`, `ingress`, `adapters`, `ui`):** Each adapter repository tests its own translation logic in isolation—including **Pact consumer/provider** HTTP verification against the native `jdk.httpserver` ingress and **DynamoDB Local** codec tests for AWS persistence.
-* **Pure-JDK End-to-End Acceptance (`cloud-deploy`):** Executes all functional user-story acceptance scripts (`user-stories`) against the full stack assembled with **pure-JDK factories** (`Ingress.jdk()` + `Core` + `Persistence.jdk()` + `Adapters.jdk()`), delivering sub-second E2E validation with zero Docker or cloud overhead.
+* **Sliced Adapter & Contract Verification (`persistence`, `ingress`, `adapters`, `ui`):** Each adapter repository tests its own translation logic in isolation—including **Pact consumer/provider** HTTP verification against `Ingress.jdk()` (backed by lightweight domain stubs) and **DynamoDB Local** codec tests for AWS persistence.
+* **Pure-JDK End-to-End Acceptance (`cloud-deploy`):** Executes all functional user-story acceptance scripts (`user-stories`) against the full stack assembled with **pure-JDK factories** (`Ingress.jdk()` + `core` + `Persistence.jdk()` + `Adapters.jdk()`), delivering sub-second E2E validation with zero Docker or cloud overhead.
 * **Cloud Wiring Smoke Test (`cloud-deploy`):** Runs a targeted dry-run smoke test with the **AWS factories** against a local cloud emulator solely to verify IAM permissions, Infrastructure as Code templates, and cloud serialization before live rollout.
 
 ---
+
 ## AWS Serverless Technology Stack
 
 The cloud deployment uses a team of **AWS Always Free Tier** services—each plugged into an outer adapter so `core` stays 100% pure Java 24 with zero framework dependencies:
@@ -195,10 +196,10 @@ The cloud deployment uses a team of **AWS Always Free Tier** services—each plu
 | Category | AWS Service | Analogs in Classical Architecture | Repository | Primary Architectural Role |
 | :--- | :--- | :--- | :--- | :--- |
 | **Ingress & Routing** | **Amazon API Gateway** | **Nginx / Spring Cloud Gateway** | `ingress` & `cloud-deploy` | Managed HTTP entry point, request routing, and rate limiting. |
-| **Hardware Ingress *(Next Stage)*** | **AWS IoT Core** | **Mosquitto / EMQX MQTT Brokers** | `ingress` & `cloud-deploy` | Managed MQTT broker for physical tap hardware telemetry and actuation *(next stage)*. |
+| **Hardware Ingress *(Next Stage)*** | **AWS IoT Core** | **Mosquitto / EMQX MQTT Brokers** | `ingress` & `cloud-deploy` | Managed MQTT broker for physical tap hardware telemetry and actuation. |
 | **Compute** | **AWS Lambda** | **Tomcat / Embedded Jetty / Netty** | `ingress` & `cloud-deploy` | On-demand, stateless Java 24 execution workers. |
 | **Domain Persistence** | **Amazon DynamoDB** | **PostgreSQL + Hibernate / JPA** | `persistence` | Transactional database for append-only event streams and tap state. |
-| **Static Files & Hosting** | **Amazon S3** | **Nginx Static Server / Local Disk** | `ui`, `adapters` & `ingress` | Static web hosting and immutable receipt archiving. |
+| **Static Files & Hosting** | **Amazon S3** | **Nginx Static Server / Local Disk** | `ui`, `adapters` & `ingress` | Static web hosting, immutable receipt archiving, and S3 event triggers. |
 | **Async & Non-Blocking** | **Amazon SQS** | **RxJava / Project Reactor / Kafka / RabbitMQ** | `ingress` & `cloud-deploy` | Durable message queue that triggers background Lambda workers for non-blocking async jobs. |
 | **State & Workflows** | **AWS Step Functions** | **Quartz Scheduler / Camunda** | `ingress` & `cloud-deploy` | Durable state machines for time-bound, multi-step lifecycles. |
 | **Observability** | **Amazon CloudWatch** | **ELK Stack / Prometheus / Grafana** | `adapters` & `cloud-deploy` | Structured log aggregation, custom metrics, dashboards, and threshold alarms. |
@@ -209,7 +210,7 @@ The cloud deployment uses a team of **AWS Always Free Tier** services—each plu
 
 ### Mapping to Classical Architecture & Request Flow
 
-- **Amazon S3 (Analog: Nginx Static Servers & Local Disk Storage):** Serves the compiled Angular 21 bundle directly to browsers (alongside GitHub Pages) and stores finalized pour receipts without maintaining a web server or shared filesystem.
+- **Amazon S3 (Analog: Nginx Static Servers & Local Disk Storage):** Serves the compiled Angular 21 bundle directly to browsers (alongside GitHub Pages), stores finalized pour receipts, and emits object-creation event triggers to Lambda without maintaining a web server or shared filesystem.
 - **Amazon API Gateway (Analog: Nginx & Spring Cloud Gateway):** Intercepts incoming HTTP requests from the Angular app, validates the `X-Festival-Pass` header, and enforces a 5-requests-per-second throttle at the network edge.
 - **AWS IoT Core *(Next Stage — Physical Hardware)* (Analog: Mosquitto & Self-Hosted MQTT Brokers):** Provides a managed, mutually-authenticated MQTT message broker for the next stage when real physical tap controllers replace browser simulation—routing hardware flow-meter events directly into existing Lambda handlers without altering `core`.
 - **AWS SSM Parameter Store (Analog: HashiCorp Vault & Spring Cloud Config):** Supplies encrypted runtime secrets (such as the private invite pass and admin credentials) to outer adapters at startup without running a dedicated configuration server.
@@ -239,7 +240,7 @@ The system provides full operational visibility across synchronous HTTP boundari
 The architecture preserves **zero framework overhead** and keeps `core` 100% free of monitoring SDKs by embedding observability directly at the hexagonal boundaries:
 
 * **Domain-Level Telemetry Port (`core` & `adapters`):** Business-critical milestones (e.g., tap actuation, safety auto-shutoff triggers, sequence conflicts) are modeled through a lightweight outbound port (`TelemetryPort`), keeping domain logic pure. Local runs (`Adapters.jdk()`) stream structured logs to standard output (`stdout`), while cloud deployments (`Adapters.aws()`) emit single-line JSON logs and custom **Amazon CloudWatch** metrics without heavy reflection-based agents.
-* **End-to-End Distributed Tracing (`ingress` & `cloud-deploy`):** Every inbound request carries a correlation ID (`X-Amzn-Trace-Id` / W3C `traceparent`) across **API Gateway**, **AWS Lambda**, **SQS** message attributes, and **Step Functions** executions via **AWS X-Ray** / **OpenTelemetry**, making a single beer pour traceable from tap open to asynchronous receipt generation.
+* **End-to-End Distributed Tracing (`ingress` & `cloud-deploy`):** Every inbound request carries a correlation ID (`X-Amzn-Trace-Id` / W3C `traceparent`) across **API Gateway**, **AWS Lambda**, **SQS** message attributes, and **Step Functions** executions via **AWS X-Ray** (with W3C `traceparent` context propagation), making a single beer pour traceable from tap open to asynchronous receipt generation.
 * **Structured Logging & Business Context:** All ingress and background logs contain high-cardinality domain identifiers (`tapId`, `pourId`, `eventSequence`), enabling instant root-cause queries in **CloudWatch Logs Insights**.
 * **Live Dashboards, Push Alerts & Zero Open Ports (`cloud-deploy`):** Because the cloud infrastructure is fully managed and serverless, **no custom network ports or self-hosted monitoring servers exist**. Operational views are accessible over standard **HTTPS (443)** via IAM-authenticated AWS Console links exported by `cloud-deploy`:
   * **Live Operational Dashboard:** The exported `CloudWatchDashboardUrl` displays real-time pour rates, safety shutoffs, and Lambda latency in the browser within 10–60 seconds of traffic.
@@ -282,5 +283,8 @@ Once assembled and started (either locally via the pure-JDK factories or deploye
 
 * **Public Self-Service Bar (`/public`):** Visitors enter using their invite pass (`X-Festival-Pass`), view all active beer taps with live prices per liter, and open or close taps in real time. Dispensed volume and cost update live, with an automatic safety shut-off at **0.15 L**.
 * **Admin Dashboard (`/login`):** Operators sign in with admin credentials to register new taps, adjust flow rates and pricing, and inspect real-time spending and volume reports computed by replaying the immutable event stream.
+
+For step-by-step startup commands, environment configuration, and end-to-end demo walkthroughs, see the **[`festival-tap/cloud-deploy` README](https://github.com#readme)**.
+
 
 > For step-by-step startup commands, environment configuration, and end-to-end demo walkthroughs, see the **[`festival-tap/cloud-deploy` README](https://github.com)**.
