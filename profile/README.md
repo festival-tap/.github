@@ -284,7 +284,6 @@ Once assembled and started (either locally via the pure-JDK factories or deploye
 * **Public Self-Service Bar (`/public`):** Visitors enter using their invite pass (`X-Festival-Pass`), view all active beer taps with live prices per liter, and open or close taps in real time. Dispensed volume and cost update live, with an automatic safety shut-off at **0.15 L**.
 * **Admin Dashboard (`/login`):** Operators sign in with admin credentials to register new taps, adjust flow rates and pricing, and inspect real-time spending and volume reports computed by replaying the immutable event stream.
 
-For step-by-step startup commands, environment configuration, and end-to-end demo walkthroughs, see the **[`festival-tap/cloud-deploy` README](https://github.com#readme)**.
-
 
 > For step-by-step startup commands, environment configuration, and end-to-end demo walkthroughs, see the **[`festival-tap/cloud-deploy` README](https://github.com)**.
+> 
