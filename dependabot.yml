@@ -1,0 +1,30 @@
+# ==============================================================================
+# Specification: festival-tap Downstream Dependency Automation (Dependabot)
+# ==============================================================================
+# Prerequisites:
+#   - Add `GH_PACKAGES_TOKEN` (PAT with `read:packages` scope) in:
+#     Repo/Org Settings -> Secrets and variables -> Dependabot
+# ==============================================================================
+
+version: 2
+
+registries:
+  github-packages:
+    type: maven-repository
+    url: https://github.com
+    username: x-access-token
+    password: ${{secrets.GH_PACKAGES_TOKEN}}
+
+updates:
+  - package-ecosystem: "maven"
+    directory: "/"
+    registries:
+      - github-packages
+    schedule:
+      interval: "daily"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "build(deps)"
+    # Optional: restrict daily PRs strictly to internal foundation artifacts
+    # allow:
+    #   - dependency-name: "com.festivaltap:*"
